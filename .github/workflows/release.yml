@@ -1,0 +1,182 @@
+name: Release
+
+# Fires on a version tag, e.g. `git tag v2.1.0 && git push origin v2.1.0`.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write        # required for `gh release create`
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # VERSION in vc_converter.pyw is the single source of truth. Failing here is
+      # much cheaper than shipping an installer whose version disagrees with the
+      # app, which would make the updater re-offer the same release forever.
+      - name: Check tag matches app version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          $src = Select-String -Path src\vc_converter.pyw -Pattern "^VERSION = '(.+)'"
+          $ver = $src.Matches[0].Groups[1].Value
+          if ($tag -ne $ver) { throw "Tag $tag does not match VERSION $ver in vc_converter.pyw" }
+          "VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Building version $ver"
+
+      - name: Install dependencies
+        run: pip install pyinstaller
+
+      # Binary assets are easy to leave uncommitted - they do not show up in
+      # Visual Studio's Solution Explorer the way source files do. Check here so
+      # the failure names the missing file instead of surfacing as a PyInstaller
+      # "Unable to find ... when adding binary and data files" trace.
+      - name: Check assets are committed
+        shell: pwsh
+        run: |
+          $missing = @('src\fp.ico') | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            throw "Missing from the repository: $($missing -join ', '). Commit them; git add -f may be needed if .gitignore excludes them."
+          }
+          Get-ChildItem src\fp.ico | ForEach-Object {
+            Write-Host ("{0}  {1:N0} bytes" -f $_.Name, $_.Length)
+          }
+
+      # Keep the exe's file-properties metadata in step with the tag.
+      - name: Sync version resource
+        shell: pwsh
+        run: |
+          $v = "${{ env.VERSION }}"
+          $q = ($v -split '\.') + @('0','0','0','0')
+          $tuple = "($($q[0]), $($q[1]), $($q[2]), 0)"
+          $c = Get-Content build\version_info.txt -Raw
+          $c = $c -replace 'filevers=\([\d, ]+\)', "filevers=$tuple"
+          $c = $c -replace 'prodvers=\([\d, ]+\)', "prodvers=$tuple"
+          $c = $c -replace "StringStruct\('FileVersion', '[^']*'\)", "StringStruct('FileVersion', '$v.0')"
+          $c = $c -replace "StringStruct\('ProductVersion', '[^']*'\)", "StringStruct('ProductVersion', '$v.0')"
+          Set-Content build\version_info.txt $c
+
+      - name: Build with PyInstaller
+        run: pyinstaller build\vc_converter.spec --noconfirm --clean --workpath dist\work
+
+      # Signing is skipped automatically when the secret is absent, so forks and
+      # unsigned test builds still work. Set SIGNING_PFX_BASE64 and
+      # SIGNING_PFX_PASSWORD in Settings -> Secrets and variables -> Actions.
+      - name: Prepare signing
+        id: signing
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.SIGNING_PFX_BASE64 }}
+        run: |
+          if (-not $env:PFX_B64) {
+            Write-Host "No signing certificate configured - skipping signing."
+            "enabled=false" | Out-File $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          # Write the cert outside the workspace so it can never be picked up by
+          # a later glob and published as a release asset.
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+
+          # signtool ships with the Windows SDK and is not on PATH by default.
+          $tool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+                    -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
+                  Where-Object { $_.FullName -match '\\x64\\' } |
+                  Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $tool) { throw "signtool.exe not found on the runner." }
+
+          "enabled=true"          | Out-File $env:GITHUB_OUTPUT -Append
+          "pfx=$pfx"              | Out-File $env:GITHUB_OUTPUT -Append
+          "signtool=$($tool.FullName)" | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host "Using $($tool.FullName)"
+
+      # Sign the app exe BEFORE Inno packages it, or the installed program is
+      # unsigned even though the installer is signed.
+      - name: Sign application
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+        run: |
+          & '${{ steps.signing.outputs.signtool }}' sign `
+            /f '${{ steps.signing.outputs.pfx }}' /p $env:PFX_PASSWORD `
+            /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            dist\FPVendorCafeConverter\FPVendorCafeConverter.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signing the application failed ($LASTEXITCODE)." }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          # Find ISCC rather than hardcoding a version-specific path. Two traps
+          # here: Inno is now 7.x so "Inno Setup 6" no longer exists, and inside
+          # a double-quoted string "$env:ProgramFiles(x86)" expands the variable
+          # and then appends a literal "(x86)", producing "C:\Program Files(x86)"
+          # with no space. The braced form ${env:ProgramFiles(x86)} is required.
+          $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ }
+          $iscc = $null
+          foreach ($r in $roots) {
+            $hit = Get-ChildItem -Path (Join-Path $r 'Inno Setup*') -Filter ISCC.exe `
+                     -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { $iscc = $hit.FullName; break }
+          }
+          if (-not $iscc) { $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source }
+          if (-not $iscc) { throw "ISCC.exe not found. Searched: $($roots -join '; ')" }
+          Write-Host "Using $iscc"
+          & $iscc /DAppVersion=${{ env.VERSION }} build\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+      # Must run BEFORE the manifest is generated: signing rewrites the file, so
+      # a checksum taken beforehand would never match what users download, and
+      # every update would abort with "Checksum mismatch".
+      - name: Sign installer
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+        run: |
+          & '${{ steps.signing.outputs.signtool }}' sign `
+            /f '${{ steps.signing.outputs.pfx }}' /p $env:PFX_PASSWORD `
+            /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            dist\installer\FPVendorCafeConverter-${{ env.VERSION }}-setup.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signing the installer failed ($LASTEXITCODE)." }
+          & '${{ steps.signing.outputs.signtool }}' verify /pa /v `
+            dist\installer\FPVendorCafeConverter-${{ env.VERSION }}-setup.exe
+
+      # The base URL must point at THIS tag's assets, so the manifest records a
+      # versioned installer URL that stays valid after later releases.
+      - name: Generate update manifest
+        run: |
+          python build\publish.py `
+            dist\installer\FPVendorCafeConverter-${{ env.VERSION }}-setup.exe `
+            ${{ env.VERSION }} `
+            --base-url https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }} `
+            --notes "See the release notes on GitHub."
+        shell: pwsh
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} `
+            dist\installer\FPVendorCafeConverter-${{ env.VERSION }}-setup.exe `
+            dist\installer\version.json `
+            --title "VendorCafe CSV Converter ${{ env.VERSION }}" `
+            --generate-notes
+        shell: pwsh
+
+      - name: Remove signing certificate
+        if: always()
+        shell: pwsh
+        run: Remove-Item (Join-Path $env:RUNNER_TEMP 'signing.pfx') -Force -ErrorAction SilentlyContinue

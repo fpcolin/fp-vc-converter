@@ -1,0 +1,31 @@
+# Windows version resource. Keep filevers/prodvers in sync with VERSION in
+# vc_converter.pyw - they must be 4 integers, so 2.0.0 becomes (2, 0, 0, 0).
+# The release workflow rewrites this file from the git tag.
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(2, 0, 0, 0),
+    prodvers=(2, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        '040904B0',
+        [StringStruct('CompanyName', 'Flooring Partners'),
+         StringStruct('FileDescription', 'Flooring Partners VendorCafe CSV Converter'),
+         StringStruct('FileVersion', '2.0.0.0'),
+         StringStruct('InternalName', 'FPVendorCafeConverter'),
+         StringStruct('LegalCopyright', 'Copyright (c) Flooring Partners'),
+         StringStruct('OriginalFilename', 'FPVendorCafeConverter.exe'),
+         StringStruct('ProductName', 'VendorCafe CSV Converter'),
+         StringStruct('ProductVersion', '2.0.0.0')]
+      )
+    ]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)

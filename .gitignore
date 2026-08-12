@@ -377,5 +377,5 @@ __pycache__/
 *.p12
 .env
 
-fp-vc-converter.pyproj
-fp-vc-converter.slnx
+*.pyproj
+*.slnx

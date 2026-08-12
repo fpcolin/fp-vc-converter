@@ -5,7 +5,7 @@
 #define AppName        "VendorCafe CSV Converter"
 ; CI passes /DAppVersion=x.y.z; the fallback keeps local builds working.
 #ifndef AppVersion
-  #define AppVersion   "2.0.0"
+  #define AppVersion   "2.0.1"
 #endif
 #define AppPublisher   "Flooring Partners"
 #define AppExeName     "FPVendorCafeConverter.exe"

@@ -1,7 +1,7 @@
 """Generate version.json for a built installer.
 
-    python build\\publish.py dist\\installer\\FPVendorCafeConverter-2.0.0-setup.exe 2.0.0 ^
-        --base-url https://github.com/fpcolin/fp-vendorcafe-converter/releases/download/v2.0.0 ^
+    python build\\publish.py dist\\installer\\FPVendorCafeConverter-2.0.1-setup.exe 2.0.1 ^
+        --base-url https://github.com/fpcolin/fp-vc-converter/releases/download/v2.0.1 ^
         --notes "Adds vCard export and auto-update."
 
 Writes version.json beside the installer. Upload both to the distribution point.

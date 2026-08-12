@@ -21,7 +21,7 @@ import updater
 
 VENDOR = 'Flooring Partners'
 APP_NAME = 'VendorCafe CSV Converter'
-VERSION = '2.0.0'
+VERSION = '2.0.1'
 
 # Bumped only when the shape of the config file changes, never for an ordinary
 # release. Keying the reset on VERSION would wipe everyone's settings on every

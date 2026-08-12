@@ -3,7 +3,7 @@
 ## Layout
 
 ```
-fp-vendorcafe-converter/
+fp-vc-converter/
 ├─ src/
 │  ├─ vc_converter.pyw    main application (.pyw = no console)
 │  ├─ updater.py          update check (must stay .py - see below)
@@ -110,7 +110,7 @@ Then publish:
 
 ```
 python build\publish.py dist\installer\FPVendorCafeConverter-2.1.0-setup.exe 2.1.0 ^
-    --base-url https://github.com/fpcolin/fp-vendorcafe-converter/releases/download/v2.1.0 ^
+    --base-url https://github.com/fpcolin/fp-vc-converter/releases/download/v2.1.0 ^
     --notes "Adds batch export."
 ```
 
@@ -142,7 +142,7 @@ GitHub works as the distribution point with no change to `updater.py` beyond
 the URL. Set:
 
 ```python
-MANIFEST_URL = 'https://github.com/fpcolin/fp-vendorcafe-converter/releases/latest/download/version.json'
+MANIFEST_URL = 'https://github.com/fpcolin/fp-vc-converter/releases/latest/download/version.json'
 ```
 
 This is already set in `src/updater.py`.
@@ -152,8 +152,8 @@ treats any network error as "no update available" and returns `None`, so the
 app runs normally — there is nothing to fix, and nothing for users to see.
 
 One ordering consequence: the very first installer you hand out cannot update
-itself *to* v2.0.0, because it already is v2.0.0. Self-updating starts working
-from the second release onward. So tag `v2.0.0`, let the workflow publish it,
+itself *to* v2.0.1, because it already is v2.0.1. Self-updating starts working
+from the second release onward. So tag `v2.0.1`, let the workflow publish it,
 distribute that installer, and every later tag reaches users automatically.
 
 `/releases/latest/download/<name>` is a permanent redirect to that asset on the

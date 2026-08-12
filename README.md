@@ -28,7 +28,7 @@ back exactly as exported.
 ## Installing
 
 Download `FPVendorCafeConverter-<version>-setup.exe` from the
-[latest release](https://github.com/fpcolin/fp-vendorcafe-converter/releases/latest)
+[latest release](https://github.com/fpcolin/fp-vc-converter/releases/latest)
 and run it.
 
 It installs per-user under `%LOCALAPPDATA%\Programs`, so no administrator rights

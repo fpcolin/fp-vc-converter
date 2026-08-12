@@ -24,7 +24,7 @@ from pathlib import Path
 # Do not switch this to api.github.com: that endpoint allows only 60
 # unauthenticated requests per hour per IP, and an office behind one NAT
 # address would exhaust it and stop receiving updates.
-MANIFEST_URL = 'https://github.com/fpcolin/fp-vendorcafe-converter/releases/latest/download/version.json'
+MANIFEST_URL = 'https://github.com/fpcolin/fp-vc-converter/releases/latest/download/version.json'
 
 NETWORK_TIMEOUT = 6      # seconds; keep short so a VPN-less laptop is not stalled
 DOWNLOAD_TIMEOUT = 300

@@ -22,12 +22,28 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="build\publish.py" />
+    <Compile Include="src\updater.py" />
     <Compile Include="src\vc_converter.pyw" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include=".github\" />
+    <Folder Include=".github\workflows\" />
     <Folder Include="build\" />
     <Folder Include="dist\" />
     <Folder Include="src\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include=".gitattributes" />
+    <Content Include=".github\workflows\release.yml" />
+    <Content Include=".gitignore" />
+    <Content Include="BUILD.md" />
+    <Content Include="build\installer.iss" />
+    <Content Include="build\vc_converter.spec" />
+    <Content Include="build\version_info.txt" />
+    <Content Include="LICENSE.txt" />
+    <Content Include="README.md" />
+    <Content Include="src\fp.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

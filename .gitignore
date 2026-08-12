@@ -361,3 +361,21 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Build output
+build/*.exe
+dist/
+*.spec.bak
+ 
+# PyInstaller defaults its scratch dir to ./build, which is our source dir.
+# The build commands pass --workpath dist\work to keep them separate.
+__pycache__/
+*.py[cod]
+ 
+# Local secrets - never commit signing certs or tokens
+*.pfx
+*.p12
+.env
+
+fp-vc-converter.pyproj
+fp-vc-converter.slnx

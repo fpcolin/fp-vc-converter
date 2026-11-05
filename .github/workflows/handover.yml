@@ -1,0 +1,64 @@
+name: Handover to Flooring Partners App
+
+# This app has been replaced by Flooring Partners App (fpcolin/fp-tools).
+# Run this workflow by hand (Actions -> "Handover to Flooring Partners App"
+# -> Run workflow) with a published Flooring Partners App version, e.g. 3.0.3.
+#
+# It publishes a release in THIS repository whose version.json points at that
+# version's handover installer. Installed copies of the old app check this
+# repository's latest version.json when they start, offer it as an update,
+# download it, check its SHA-256 and run it. The handover installer installs
+# Flooring Partners App for that person (or opens it if it's already
+# installed), and the app copies the old app's settings and then removes the
+# old app. Nothing in the old app has to change.
+#
+# Run it once. It must stay this repository's latest release, so don't
+# publish other releases here afterwards.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Flooring Partners App version to hand over to (for example 3.0.3)'
+        required: true
+
+permissions: {}
+
+jobs:
+  handover:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # to create the release in this repository
+    env:
+      # Untrusted input reaches the script only through the environment.
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Write version.json for the handover installer
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "::error::The version must look like 3.0.3 (got '$VERSION')."
+            exit 1
+          fi
+          url="https://github.com/fpcolin/fp-tools/releases/download/v${VERSION}/FPTools-${VERSION}-handover.exe"
+          echo "Downloading $url"
+          if ! curl --fail --location --silent --show-error --output handover.exe "$url"; then
+            echo "::error::Could not download the handover installer. Is Flooring Partners App ${VERSION} published (not a draft)?"
+            exit 1
+          fi
+          sha=$(sha256sum handover.exe | cut -d' ' -f1)
+          notes="This app has been replaced by Flooring Partners App, which does QR codes and the VendorCafe converter in one window. Click Yes to install it: your settings are copied over, and this app is removed afterwards."
+          jq -n --arg version "$VERSION" --arg url "$url" --arg sha256 "$sha" --arg notes "$notes" \
+            '{version: $version, url: $url, sha256: $sha256, notes: $notes}' > version.json
+          cat version.json
+
+      - name: Publish it as this repository's latest release
+        run: |
+          set -euo pipefail
+          tag="handover-${VERSION}"
+          gh release create "$tag" version.json \
+            --target "$GITHUB_SHA" --latest \
+            --title "Replaced by Flooring Partners App ${VERSION}" \
+            --notes "This app has been replaced by [Flooring Partners App](https://github.com/fpcolin/fp-tools). Installed copies update themselves into it: the settings are copied over and this app is removed."

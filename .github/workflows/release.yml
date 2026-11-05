@@ -1,9 +1,11 @@
 name: Release
 
 # Fires on a version tag, e.g. `git tag v2.1.0 && git push origin v2.1.0`.
+# Retired: this app has been replaced by Flooring Partners App. A new release
+# here would replace the handover release (see handover.yml) as the latest
+# one and stop installed copies from moving to the new app, so tags no longer
+# start a build.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
